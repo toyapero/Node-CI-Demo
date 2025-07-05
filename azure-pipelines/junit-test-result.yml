@@ -4,36 +4,67 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
 
 trigger:
-- main
+  - main
 
-pool:
-  name: Azure Pipelines
-  
+stages:
 
-steps:
-- task: NodeTool@0
-  inputs:
-    versionSpec: '16.x'
-  displayName: 'Install Node.js'
+  - stage: Build
+    displayName: '🏗 Build Stage'
+    jobs:
+      - job: BuildJob
+        displayName: 'Install, Test & Package'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '16.x'
+            displayName: 'Install Node.js'
 
-- script: |
-    npm install
-    npm run build
-    npm test
-- task: PublishTestResults@2
-  inputs:
-    testResultsFormat: 'JUnit'
-    testResultsFiles: '**/TEST-*.xml'
-  displayName: 'npm install and build'
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
-    includeRootFolder: false
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
-    replaceExistingArchive: true
+          - script: |
+              npm install
+              npm run build
+              npm test
+            displayName: 'npm install, build, test'
 
-- task: PublishBuildArtifacts@1
-  inputs:
-    PathToPublish: '$(Build.ArtifactStagingDirectory)'
-    artifactName: 'drop'
+          - task: ArchiveFiles@2
+            inputs:
+              rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+              includeRootFolder: false
+              archiveType: zip
+              archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+              replaceExistingArchive: true
+            displayName: 'Archive artifacts'
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: '$(Build.ArtifactStagingDirectory)'
+              artifactName: 'drop'
+            displayName: 'Publish artifact'
+
+  - stage: Deploy
+    displayName: '🚀 Deploy Stage'
+    dependsOn: Build
+    jobs:
+      - deployment: DeployJob
+        displayName: 'Deploy to jogowebapp'
+        environment: 'production'
+        pool:
+          vmImage: 'ubuntu-latest'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifact: 'drop'
+                    path: '$(Pipeline.Workspace)'
+                  displayName: 'Download artifact'
+
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: 'ARMServiceConnectionTemi'
+                    appType: 'webAppLinux'
+                    appName: 'AppDevExpress'
+                    package: '$(Pipeline.Workspace)/$(Build.BuildId).zip'
+                  displayName: 'Deploy to Azure App Service'
