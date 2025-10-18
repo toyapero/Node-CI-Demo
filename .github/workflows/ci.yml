@@ -39,15 +39,15 @@ jobs:
       run: npm run build
 
     - name: Run tests
-      run: npm test
+      run: npm test 
 
-deploy:  
+  deploy:  
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
-          app-name: myapp
+          app-name: wapp-dev-github
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: .
