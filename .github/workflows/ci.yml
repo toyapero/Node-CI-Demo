@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to Azure Web App
+      - name: Deploy to Azure Web Apps
         uses: azure/webapps-deploy@v2
         with:
           app-name: wapp-dev-github
